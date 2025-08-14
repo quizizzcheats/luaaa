@@ -1,6 +1,17 @@
+--[[
+    Made By Dexemox (dexemoxed)
+    ปรับแต่งโดย ChatGPT:
+    - จัดโค้ดให้อ่านง่าย
+    - ใส่ _G. ให้ตัวแปรหลัก
+    - เพิ่ม UI Wall V3 สำหรับควบคุม Auto Shake & Auto Digging
+    - แก้บัค getinfo / clonefunction / loop Shake
+--]]
+
 ------------------------------------
 -- โหลดและตั้งค่า client
 ------------------------------------
+local getinfo = debug.getinfo -- ใช้ debug.getinfo แทน getinfo เฉย ๆ
+
 if getgenv().client == nil then
     getgenv().client = {}
 
@@ -9,7 +20,12 @@ if getgenv().client == nil then
             local sc = tostring(getfenv(v).script)
             if sc ~= nil and sc == "PanClient" then
                 if getinfo(v).name == "stopDigging" then
-                    client.originalstopdigging = clonefunction(v)
+                    -- clonefunction ถ้าไม่มีให้ใช้ฟังก์ชันเดิม
+                    if clonefunction then
+                        client.originalstopdigging = clonefunction(v)
+                    else
+                        client.originalstopdigging = v
+                    end
                 end
                 client[getinfo(v).name] = v
             end
@@ -28,6 +44,7 @@ end
 
 client.oldpn = client.getpan().Name
 
+-- setconstant / hookfunction
 setconstant(client.startPanning, 29, "Panningg")
 setconstant(client.startDigging, 15, -9e9)
 setconstant(client.startDigging, 39, -9e9)
@@ -39,6 +56,7 @@ pcall(function()
     hookfunction(client.toggleCamera, function() end)
 end)
 
+-- hook stopDigging
 hookfunction(client.stopDigging, function()
     getupvalue(client.originalstopdigging, 1):Stop(0)
     getupvalue(client.originalstopdigging, 2):Stop(0)
@@ -67,12 +85,12 @@ _G.HI = getupvalue(_G.YA, 1).GetPanningRegion
 _G.NO = getupvalue(_G.YA, 2)
 _G.HO = getupvalue(_G.HA, 5)
 
+-- ตั้งค่า WalkSpeed และป้องกันการถูกเปลี่ยน
 _G.NO.Parent.Humanoid.WalkSpeed = 26
 _G.NO.Anchored = false
 _G.NO.Parent.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
     _G.NO.Parent.Humanoid.WalkSpeed = 26
 end)
-
 _G.NO:GetPropertyChangedSignal("Anchored"):Connect(function()
     _G.NO.Anchored = false
 end)
@@ -104,19 +122,21 @@ end)
 
 b:DestroyGui()
 
-task.spawn(function()
-    local RS = game:GetService("RunService")
-    while task.wait() do
-        RS.Heartbeat:Wait()
-        if _G.AutoShake and client.oldpn == client.getpan().Name then
-            _G.HO:FireServer()
-            game:GetService("Players").LocalPlayer.PlayerGui.ToolUI.FillingPan.Visible = true
-            _G.NO.Parent.Humanoid.WalkSpeed = 26
-            _G.NO.Anchored = false
-        end
+------------------------------------
+-- Loop Auto Shake (เร็วมาก)
+------------------------------------
+game:GetService("RunService").Heartbeat:Connect(function()
+    if _G.AutoShake and client.oldpn == client.getpan().Name then
+        _G.HO:FireServer()
+        game:GetService("Players").LocalPlayer.PlayerGui.ToolUI.FillingPan.Visible = true
+        _G.NO.Parent.Humanoid.WalkSpeed = 26
+        _G.NO.Anchored = false
     end
 end)
 
+------------------------------------
+-- Loop Auto Digging
+------------------------------------
 task.spawn(function()
     while task.wait() do
         if _G.AutoDig and client.oldpn == client.getpan().Name then
@@ -131,6 +151,7 @@ task.spawn(function()
     end
 end)
 
+-- ลบ client หลังจบงาน
 task.delay(0.1, function()
     getgenv().client = nil
 end)
